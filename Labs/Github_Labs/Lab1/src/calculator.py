@@ -74,4 +74,5 @@ def power(x, y):
 # f2_op = fun2(2,3)
 # f3_op = fun3(2,3)
 # f4_op = fun4(f1_op,f2_op,f3_op)
+# f5_op = power(3, 2)
 
