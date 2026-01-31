@@ -57,6 +57,18 @@ def fun4(x,y,z):
     total_sum = x + y + z
     return total_sum
 
+def power(x, y):
+    """
+    Calculate x raised to the power of y.
+    
+    Args:
+        x: The base number
+        y: The exponent
+    
+    Returns:
+        The result of x^y
+    """
+    return x ** y
 
 # f1_op = fun1(2,3)
 # f2_op = fun2(2,3)
