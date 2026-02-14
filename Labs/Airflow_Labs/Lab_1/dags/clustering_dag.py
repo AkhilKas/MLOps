@@ -40,7 +40,7 @@ with DAG(
     'improved_customer_clustering_pipeline',
     default_args=default_args,
     description='Enhanced K-Means clustering with validation and optimization',
-    schedule_interval=None,  # Manual trigger only
+    schedule=None,  # Manual trigger only
     catchup=False,
     tags=['mlops', 'clustering', 'credit-card', 'akhilesh-shah'],
     doc_md=__doc__,
@@ -261,8 +261,3 @@ with DAG(
     load_data_task >> data_preprocessing_task >> build_model_task >> quality_check_task
     quality_check_task >> [predict_task, reject_task]
     [predict_task, reject_task] >> report_task
-
-
-# Test DAG structure
-if __name__ == "__main__":
-    dag.test()
