@@ -1,3 +1,12 @@
+# Airflow Runtime
+airflow.cfg
+airflow.db
+airflow.db-shm
+airflow.db-wal
+airflow-webserver.pid
+simple_auth_manager_passwords.json.generated
+standalone_admin_password.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -13,6 +22,7 @@ pipeline/
 istio-1.23.2/
 test_env/
 google-cloud-sdk/
+
 # C extensions
 *.so
 *.tar.gz
