@@ -1,22 +1,40 @@
-# Iris Classification
+# Breast Cancer Classification with Model Comparison
 
 ## Overview
 
-This lab containerizes a machine learning model training pipeline using Docker. The application trains a Random Forest classifier on the Iris dataset and generates comprehensive evaluation metrics.
+This lab containerizes a machine learning pipeline using Docker. The application trains and compares multiple classification models (Random Forest and Gradient Boosting) on the Breast Cancer Wisconsin dataset, automatically selecting the best performer based on evaluation metrics.
 
-**Dataset**: Iris (150 samples, 4 features, 3 classes)  
-**Model**: Random Forest Classifier  
-**Output**: Trained model + evaluation metrics + sample predictions
+**Dataset**: Breast Cancer Wisconsin
+**Models**: Random Forest vs Gradient Boosting  
+**Output**: Best model + evaluation metrics + sample predictions
 
 ## Improvements Made
 
-### 1. Model Evaluation Metrics
-**Original**: Only saves model, no evaluation  
+### 1. Dataset
+**Original**: Iris dataset (150 samples, 4 features, 3 classes)  
+**Improved**: Breast Cancer dataset (569 samples, 30 features, binary classification)
+- More complex problem (30 features vs 4)
+- Healthcare domain application
+- Binary classification (malignant vs benign)
+
+### 2. Model Comparison
+**Original**: Single Random Forest model  
 **Improved**: 
-- Calculates accuracy, F1 score
-- Generates classification report (precision, recall per class)
-- Creates confusion matrix
-- Saves all metrics to JSON file
+- Trains both Random Forest and Gradient Boosting
+- Compares models using accuracy, F1 score, and ROC AUC
+- Automatically selects best performing model
+- Saves comparison results in metrics
+
+### 3. Enhanced Evaluation Metrics
+**Original**: No evaluation  
+**Improved**: 
+- Accuracy score
+- F1 score (weighted)
+- ROC AUC score (for binary classification)
+- Classification report (precision, recall per class)
+- Confusion matrix
+- Model comparison table
+- All metrics saved to JSON file
 
 ### 2. Data Validation
 **Original**: No validation  
@@ -32,7 +50,7 @@ This lab containerizes a machine learning model training pipeline using Docker. 
 - Detailed logging at each pipeline stage
 - INFO/WARNING/ERROR log levels
 - Timestamps for all operations
-- Training progress tracking
+- Model comparison results logged
 
 ### 4. Error Handling
 **Original**: No error handling  
@@ -78,25 +96,20 @@ docker --version
 cd Docker_Labs/Lab1
 
 # Build the image
-docker build -t iris-classifier:improved .
+docker build -t breast-cancer-classifier:improved .
 
 # Verify image created
-docker images | grep iris-classifier
-```
-
-**Expected output**:
-```
-iris-classifier   improved   abc123def456   10 seconds ago   200MB
+docker images | grep breast-cancer-classifier
 ```
 
 ### Step 2: Run the Container
 
 ```bash
 # Run the training pipeline
-docker run --name iris-training iris-classifier:improved
+docker run --name cancer-training breast-cancer-classifier:improved
 
 # View logs in real-time
-docker logs -f iris-training
+docker logs -f cancer-training
 ```
 
 **Note**: Before building Docker, test locally:
@@ -107,8 +120,10 @@ python tests/verify_locally.py
 ### Step 3: Extract Results
 
 ```bash
-# Copy model file from container
-docker cp iris-training:/app/iris_model.pkl ./
+# Copy model file from container (name depends on which model won)
+docker cp iris-training:/app/breast_cancer_gradientboosting.pkl ./
+# OR
+docker cp iris-training:/app/breast_cancer_randomforest.pkl ./
 
 # Copy metrics file
 docker cp iris-training:/app/model_metrics.json ./
@@ -127,42 +142,45 @@ cat model_metrics.json
 cat sample_predictions.json
 ```
 
-## Verification
-
 ### Test the Container
 
 ```bash
 # Run tests (if you add them)
-docker run iris-classifier:improved python -m pytest tests/ -v
+docker run breast-cancer-classifier:improved python -m pytest tests/ -v
 
 # Check health
-docker inspect iris-classifier:improved | grep -i health
+docker inspect breast-cancer-classifier:improved | grep -i health
 ```
 
 ### Inspect Container
 
 ```bash
 # View container filesystem
-docker run -it iris-classifier:improved /bin/bash
+docker run -it breast-cancer-classifier:improved /bin/bash
 
 # Inside container:
 ls -la
 cat model_metrics.json
 exit
 ```
----
 
 ## Docker Commands Reference
 
 ### Build
 ```bash
-docker build -t iris-classifier:improved .
+docker build -t breast-cancer-classifier:improved .
 ```
 
 ### Run
 ```bash
 # Basic run
-docker run iris-classifier:improved
+docker run breast-cancer-classifier:improved
+
+# Run with name
+docker run --name cancer-training breast-cancer-classifier:improved
+
+# Run with volume mount
+docker run -v $(pwd)/output:/app breast-cancer-classifier:improved
 ```
 
 ### Manage
@@ -171,24 +189,7 @@ docker run iris-classifier:improved
 docker ps -a
 
 # View logs
-docker logs iris-training
-
-# Remove container
-docker rm iris-training
-
-# Remove image
-docker rmi iris-classifier:improved
-```
-
-### Extract Files
-```bash
-# Copy files from container
-docker cp iris-training:/app/iris_model.pkl ./
-docker cp iris-training:/app/model_metrics.json ./
-docker cp iris-training:/app/sample_predictions.json ./
-```
-
----
+docker logs cancer-training
 
 ## Troubleshooting
 
