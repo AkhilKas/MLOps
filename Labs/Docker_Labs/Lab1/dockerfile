@@ -1,14 +1,45 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10
+# Multi-stage build for smaller image size
+# Stage 1: Builder
+FROM python:3.10-slim AS builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the model training script into the container
-COPY src/ .
+# Copy requirements first 
+COPY requirements.txt .
 
-# Install Scikit-Learn and joblib
-RUN pip install -r requirements.txt
+# Install dependencies in a virtual environment
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Run the script when the container launches
+# Stage 2: Runtime
+FROM python:3.10-slim
+
+# Set metadata labels
+LABEL maintainer="Akhilesh Kasturi <kasturi.a@northeastern.edu>"
+LABEL description="Iris Classification Model Training with Evaluation"
+LABEL version="1.0"
+
+# Create non-root user for security
+RUN useradd -m -u 1000 mlops && \
+    mkdir -p /app && \
+    chown -R mlops:mlops /app
+
+WORKDIR /app
+
+# Copy dependencies from builder stage
+COPY --from=builder /root/.local /home/mlops/.local
+
+# Copy application code
+COPY --chown=mlops:mlops src/ .
+
+# Switch to non-root user
+USER mlops
+
+# Add local Python packages to PATH
+ENV PATH=/home/mlops/.local/bin:$PATH
+
+# Health check (optional but good practice)
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
+
+# Run the training script
 CMD ["python", "main.py"]
