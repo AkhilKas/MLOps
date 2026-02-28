@@ -1,7 +1,8 @@
 """
-Improved Iris Classification Model Training
+Breast Cancer Classification Model Training with Model Comparison
 
 Improvements:
+- Multiple model comparison (RandomForest vs GradientBoosting)
 - Model evaluation with multiple metrics
 - Data validation
 - Structured logging
@@ -15,14 +16,15 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from sklearn.datasets import load_iris
+from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import (
     accuracy_score, 
     classification_report, 
     confusion_matrix,
-    f1_score
+    f1_score,
+    roc_auc_score
 )
 import joblib
 import numpy as np
@@ -64,7 +66,7 @@ def train_model(X_train, y_train):
         
         model.fit(X_train, y_train)
         
-        logger.info(f"Model trained successfully")
+        logger.info("Model trained successfully")
         logger.info(f"   - Number of trees: {model.n_estimators}")
         logger.info(f"   - Max depth: {model.max_depth}")
         
@@ -75,17 +77,83 @@ def train_model(X_train, y_train):
         raise
 
 
-def evaluate_model(model, X_test, y_test):
+def train_gradient_boosting(X_train, y_train):
+    """Train Gradient Boosting model with logging"""
+    try:
+        logger.info("Training Gradient Boosting model...")
+        
+        model = GradientBoostingClassifier(
+            n_estimators=100,
+            learning_rate=0.1,
+            max_depth=5,
+            random_state=42
+        )
+        
+        model.fit(X_train, y_train)
+        
+        logger.info("Model trained successfully")
+        logger.info(f"   - Number of estimators: {model.n_estimators}")
+        logger.info(f"   - Learning rate: {model.learning_rate}")
+        
+        return model
+    
+    except Exception as e:
+        logger.error(f"Model training failed: {e}")
+        raise
+
+
+def compare_models(models_dict, X_test, y_test):
+    """Compare multiple models and return best one"""
+    try:
+        logger.info("Comparing models...")
+        
+        comparison_results = {}
+        
+        for model_name, model in models_dict.items():
+            y_pred = model.predict(X_test)
+            y_prob = model.predict_proba(X_test)[:, 1]
+            
+            accuracy = accuracy_score(y_test, y_pred)
+            f1 = f1_score(y_test, y_pred, average='weighted')
+            roc_auc = roc_auc_score(y_test, y_prob)
+            
+            comparison_results[model_name] = {
+                'accuracy': float(accuracy),
+                'f1_score': float(f1),
+                'roc_auc': float(roc_auc)
+            }
+            
+            logger.info(f"   {model_name}:")
+            logger.info(f"      - Accuracy: {accuracy:.4f}")
+            logger.info(f"      - F1 Score: {f1:.4f}")
+            logger.info(f"      - ROC AUC: {roc_auc:.4f}")
+        
+        # Select best model based on F1 score
+        best_model_name = max(comparison_results, key=lambda x: comparison_results[x]['f1_score'])
+        best_model = models_dict[best_model_name]
+        
+        logger.info(f"\nBest model: {best_model_name}")
+        
+        return best_model, best_model_name, comparison_results
+    
+    except Exception as e:
+        logger.error(f"Model comparison failed: {e}")
+        raise
+
+
+def evaluate_model(model, X_test, y_test, model_name="Model"):
     """Evaluate model and return metrics"""
     try:
-        logger.info("Evaluating model on test set...")
+        logger.info(f"Evaluating {model_name} on test set...")
         
         # Make predictions
         y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
         
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred, average='weighted')
+        roc_auc = roc_auc_score(y_test, y_prob)
         
         # Get classification report as dict
         report = classification_report(y_test, y_pred, output_dict=True)
@@ -96,11 +164,14 @@ def evaluate_model(model, X_test, y_test):
         logger.info(f"Model evaluation complete:")
         logger.info(f"   - Accuracy: {accuracy:.4f}")
         logger.info(f"   - F1 Score: {f1:.4f}")
+        logger.info(f"   - ROC AUC: {roc_auc:.4f}")
         logger.info(f"\nConfusion Matrix:\n{cm}")
         
         metrics = {
+            'model_name': model_name,
             'accuracy': float(accuracy),
             'f1_score': float(f1),
+            'roc_auc': float(roc_auc),
             'classification_report': report,
             'confusion_matrix': cm.tolist(),
             'test_samples': int(len(y_test)),
@@ -114,7 +185,7 @@ def evaluate_model(model, X_test, y_test):
         raise
 
 
-def save_model_and_metrics(model, metrics, model_path='iris_model.pkl', metrics_path='model_metrics.json'):
+def save_model_and_metrics(model, metrics, model_path='model.pkl', metrics_path='model_metrics.json'):
     """Save model and metrics to files"""
     try:
         # Save model
@@ -145,7 +216,7 @@ def make_sample_predictions(model, X_test, y_test, n_samples=5):
         for idx in indices:
             pred = model.predict([X_test[idx]])[0]
             actual = y_test[idx]
-            correct = "✅" if pred == actual else "❌"
+            correct = "CORRECT" if pred == actual else "INCORRECT"
             
             predictions.append({
                 'features': X_test[idx].tolist(),
@@ -154,7 +225,7 @@ def make_sample_predictions(model, X_test, y_test, n_samples=5):
                 'correct': bool(pred == actual)
             })
             
-            logger.info(f"   {correct} Predicted: {pred}, Actual: {actual}")
+            logger.info(f"   {correct}: Predicted: {pred}, Actual: {actual}")
         
         return predictions
     
@@ -167,15 +238,16 @@ def main():
     """Main pipeline execution"""
     try:
         logger.info("=" * 60)
-        logger.info("IRIS CLASSIFICATION MODEL TRAINING PIPELINE")
+        logger.info("BREAST CANCER CLASSIFICATION MODEL TRAINING PIPELINE")
         logger.info("Author: Akhilesh Kasturi")
         logger.info("=" * 60)
         
         # Load dataset
-        logger.info("Loading Iris dataset...")
-        iris = load_iris()
-        X, y = iris.data, iris.target
+        logger.info("Loading Breast Cancer dataset...")
+        cancer = load_breast_cancer()
+        X, y = cancer.data, cancer.target
         logger.info(f"Dataset loaded: {X.shape[0]} samples, {X.shape[1]} features, {len(np.unique(y))} classes")
+        logger.info(f"Classes: 0=malignant, 1=benign")
         
         # Validate data
         validate_data(X, y)
@@ -187,23 +259,40 @@ def main():
         )
         logger.info(f"Train: {len(X_train)} samples, Test: {len(X_test)} samples")
         
-        # Train model
-        model = train_model(X_train, y_train)
+        # Train multiple models
+        logger.info("\nTraining multiple models for comparison...")
+        rf_model = train_model(X_train, y_train)
+        gb_model = train_gradient_boosting(X_train, y_train)
         
-        # Evaluate model
-        metrics = evaluate_model(model, X_test, y_test)
+        # Compare models
+        models_dict = {
+            'RandomForest': rf_model,
+            'GradientBoosting': gb_model
+        }
+        
+        best_model, best_model_name, comparison_results = compare_models(
+            models_dict, X_test, y_test
+        )
+        
+        # Evaluate best model in detail
+        metrics = evaluate_model(best_model, X_test, y_test, model_name=best_model_name)
+        
+        # Add comparison results to metrics
+        metrics['model_comparison'] = comparison_results
         
         # Check quality threshold
-        if metrics['accuracy'] < 0.85:
-            logger.warning(f"⚠️ Model accuracy ({metrics['accuracy']:.4f}) below threshold (0.85)")
+        if metrics['accuracy'] < 0.90:
+            logger.warning(f"Model accuracy ({metrics['accuracy']:.4f}) below threshold (0.90)")
         else:
-            logger.info(f"Model meets quality threshold (accuracy > 0.85)")
+            logger.info(f"Model meets quality threshold (accuracy > 0.90)")
         
-        # Save model and metrics
-        save_model_and_metrics(model, metrics)
+        # Save best model and metrics
+        save_model_and_metrics(best_model, metrics, 
+                              model_path=f'breast_cancer_{best_model_name.lower()}.pkl',
+                              metrics_path='model_metrics.json')
         
         # Make sample predictions
-        predictions = make_sample_predictions(model, X_test, y_test, n_samples=5)
+        predictions = make_sample_predictions(best_model, X_test, y_test, n_samples=5)
         
         # Save predictions
         with open('sample_predictions.json', 'w') as f:
@@ -212,9 +301,11 @@ def main():
         
         logger.info("=" * 60)
         logger.info("PIPELINE COMPLETED SUCCESSFULLY")
+        logger.info(f"   - Best Model: {best_model_name}")
         logger.info(f"   - Model Accuracy: {metrics['accuracy']:.4f}")
         logger.info(f"   - F1 Score: {metrics['f1_score']:.4f}")
-        logger.info(f"   - Files created: iris_model.pkl, model_metrics.json, sample_predictions.json")
+        logger.info(f"   - ROC AUC: {metrics['roc_auc']:.4f}")
+        logger.info(f"   - Files created: breast_cancer_{best_model_name.lower()}.pkl, model_metrics.json, sample_predictions.json")
         logger.info("=" * 60)
         
         return 0
