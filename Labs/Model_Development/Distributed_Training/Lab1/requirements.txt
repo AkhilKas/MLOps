@@ -1,0 +1,12 @@
+# TensorFlow
+tensorflow==2.15.0
+
+# Data processing
+numpy==1.26.4
+
+# Visualization (optional)
+matplotlib==3.8.0
+
+# Jupyter (for notebook)
+ipykernel==6.29.0
+jupyter==1.0.0
